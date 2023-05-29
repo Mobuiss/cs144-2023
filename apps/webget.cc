@@ -4,15 +4,23 @@
 #include <iostream>
 #include <span>
 #include <string>
-
 using namespace std;
 
 void get_URL( const string& host, const string& path )
 {
   cerr << "Function called: get_URL(" << host << ", " << path << ")\n";
   cerr << "Warning: get_URL() has not been implemented yet.\n";
+  TCPSocket tcpsocket;printf("????????????");
+  Address address(host,"http");
+  tcpsocket.connect(address);
+  tcpsocket.write("GET "+path+" HTTP/1.1"+"\r\n"+"Host: "+host+"\r\n"+"Connection: close"+"\r\n"+"\r\n");
+  while(!tcpsocket.eof()){
+    string buffer;
+    tcpsocket.read(buffer);
+    cout << buffer;
+  }
+  tcpsocket.close();
 }
-
 int main( int argc, char* argv[] )
 {
   try {

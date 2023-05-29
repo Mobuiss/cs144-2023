@@ -2,6 +2,7 @@
 
 #include <queue>
 #include <stdexcept>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -13,6 +14,7 @@ class ByteStream
 protected:
   uint64_t capacity_;
   // Please add any additional state to the ByteStream here, and not to the Writer and Reader interfaces.
+  std::string in,out;
 
 public:
   explicit ByteStream( uint64_t capacity );

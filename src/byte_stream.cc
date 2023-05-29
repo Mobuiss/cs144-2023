@@ -10,6 +10,7 @@ void Writer::push( string data )
 {
   // Your code here.
   (void)data;
+  
 }
 
 void Writer::close()
