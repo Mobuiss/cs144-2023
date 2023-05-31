@@ -14,8 +14,8 @@ void Writer::push( string data )
       set_error();
       break;
     }
-    send++;
-    buffer.push_back( ch );
+    ++send;
+    buffer.push( ch );
   }
 }
 
@@ -52,9 +52,6 @@ uint64_t Writer::bytes_pushed() const
 string_view Reader::peek() const
 {
   // Your code here.
-  if ( buffer.empty() ) {
-    return "";
-  }
   return { std::string_view( &buffer.front(), 1 ) };
 }
 
@@ -74,9 +71,9 @@ void Reader::pop( uint64_t len )
 {
   // Your code here.
   while ( len && !buffer.empty() ) {
-    buffer.pop_front();
-    len--;
-    recv++;
+    buffer.pop();
+    --len;
+    ++recv;
   }
 }
 
