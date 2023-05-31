@@ -7,9 +7,9 @@
 class Reassembler
 {
 private:
-  const int N=2e7+7;
+  const int N = 2e7 + 7;
   const int val = 114514;
-  std::vector<int> s{std::vector<int>(N,val)};
+  std::vector<int> s {};
   uint64_t need = 0, lastpos = -1, store = 0;
 
 public:

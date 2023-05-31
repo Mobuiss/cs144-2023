@@ -25,7 +25,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   // limit right
   data = data.substr( 0, min( need + output.available_capacity() - first_index, (uint64_t)data.size() ) );
   //  put unique byte into vector
-  while ( s.size() < first_index + data.size() ){
+  while ( s.size() < first_index + data.size() ) {
     s.push_back( val );
   }
   for ( auto& ch : data ) {
