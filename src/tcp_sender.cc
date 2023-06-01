@@ -1,53 +1,125 @@
 #include "tcp_sender.hh"
 #include "tcp_config.hh"
-
+#include <iostream>
 #include <random>
-
 using namespace std;
 
 /* TCPSender constructor (uses a random ISN if none given) */
 TCPSender::TCPSender( uint64_t initial_RTO_ms, optional<Wrap32> fixed_isn )
-  : isn_( fixed_isn.value_or( Wrap32 { random_device()() } ) ), initial_RTO_ms_( initial_RTO_ms )
+  : isn_( fixed_isn.value_or( Wrap32 { random_device()() } ) )
+  , ackno( isn_ )
+  , send_index( isn_ )
+  , initial_RTO_ms_( initial_RTO_ms )
+  , RTO( initial_RTO_ms )
 {}
 
 uint64_t TCPSender::sequence_numbers_in_flight() const
 {
   // Your code here.
-  return {};
+  return { have_read_bytes - have_ack_bytes };
 }
-
 uint64_t TCPSender::consecutive_retransmissions() const
 {
   // Your code here.
-  return {};
+  return { retransmission_cnt };
 }
 
 optional<TCPSenderMessage> TCPSender::maybe_send()
 {
   // Your code here.
-  return {};
+  // cout << "1111111111" << endl;
+  if ( data_for_send.empty() )
+    return nullopt;
+  // cout << "2222222222" << endl;
+  TCPSenderMessage tsm = data_for_send.front();
+  data_for_send.pop();
+  if ( tsm.sequence_length() == 0 )
+    return tsm;
+  uint64_t id = tsm.seqno.unwrap( isn_, checkpoint );
+  if ( id != lowest_retransmission_index ) {
+    if ( data_outstanding.empty() )
+      lowest_retransmission_index = id;
+    data_outstanding.push_back( tsm );
+  }
+  return { tsm };
 }
 
 void TCPSender::push( Reader& outbound_stream )
 {
   // Your code here.
-  (void)outbound_stream;
+  // cout << "real_index=" << real_index << ' ' << "checkpoint=" << checkpoint << ' ' << "size=" << ' '
+  //    << outbound_stream.bytes_buffered() << endl;
+  while ( ( real_index < checkpoint + window_size ) && !finish) {
+    string out;
+    TCPSenderMessage tsm;
+    uint64_t res = checkpoint + window_size - real_index;
+    if ( !has_syn ) {
+      tsm.SYN = true;
+      has_syn = true;
+    }
+    read( outbound_stream, min( res, TCPConfig::MAX_PAYLOAD_SIZE ) - tsm.SYN, out );
+    tsm.payload = out;
+    if ( res > tsm.sequence_length() && outbound_stream.is_finished() ) {
+      tsm.FIN = true;
+    }
+    tsm.payload = out;
+    tsm.seqno = send_index;  //cout<<"send : "<<out<<endl;
+    if(outbound_stream.is_finished()){
+      finish=true;
+    }
+    if(tsm.sequence_length()==0)break;
+    //cout<<"add"<<tsm.sequence_length()<<endl;
+    have_read_bytes += tsm.sequence_length();
+    send_index = send_index + tsm.sequence_length();
+    real_index += tsm.sequence_length();
+    data_for_send.push( tsm );
+  }
 }
 
 TCPSenderMessage TCPSender::send_empty_message() const
 {
   // Your code here.
-  return {};
+
+  return TCPSenderMessage { Wrap32 { send_index }, false, ( string ) "", false };
 }
 
 void TCPSender::receive( const TCPReceiverMessage& msg )
 {
   // Your code here.
-  (void)msg;
+  uint64_t res = checkpoint;
+  if ( msg.ackno.has_value() ) {
+    if ( msg.ackno.value().unwrap( isn_, checkpoint ) > real_index )
+      return;
+    ackno = msg.ackno.value();
+    checkpoint = ackno.unwrap( isn_, checkpoint );
+    have_ack_bytes = checkpoint;
+  }
+  window_size = max( (uint16_t)1, msg.window_size );
+  while ( !data_outstanding.empty()
+          && data_outstanding.front().seqno.unwrap( isn_, checkpoint ) + data_outstanding.front().sequence_length()
+               < checkpoint + 1 ) {
+    // cout<<"popped!"<<endl;
+    data_outstanding.pop_front();
+  }
+  if ( res < checkpoint ) {
+    RTO = initial_RTO_ms_;
+    retransmission_cnt = 0;
+    if ( !data_outstanding.empty() ) {
+      retransmission_timer = 0;
+    }
+  }
 }
 
 void TCPSender::tick( const size_t ms_since_last_tick )
 {
   // Your code here.
-  (void)ms_since_last_tick;
+  if ( !has_syn )
+    return;
+  retransmission_timer += ms_since_last_tick;
+  if ( retransmission_timer < RTO || data_outstanding.empty() )
+    return;
+  retransmission_timer = 0;
+  retransmission_cnt++;
+  data_for_send.push( data_outstanding.front() );
+  RTO <<= 1;
 }
