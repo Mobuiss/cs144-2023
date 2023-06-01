@@ -49,10 +49,11 @@ void TCPSender::push( Reader& outbound_stream )
   // Your code here.
   // cout << "real_index=" << real_index << ' ' << "checkpoint=" << checkpoint << ' ' << "size=" << ' '
   //    << outbound_stream.bytes_buffered() << endl;
-  while ( ( real_index < checkpoint + window_size ) && !finish) {
+
+  while ( ( real_index < checkpoint + max( (uint16_t)1, window_size ) ) && !finish ) {
     string out;
     TCPSenderMessage tsm;
-    uint64_t res = checkpoint + window_size - real_index;
+    uint64_t res = checkpoint + max( (uint16_t)1, window_size ) - real_index;
     if ( !has_syn ) {
       tsm.SYN = true;
       has_syn = true;
@@ -63,16 +64,18 @@ void TCPSender::push( Reader& outbound_stream )
       tsm.FIN = true;
     }
     tsm.payload = out;
-    tsm.seqno = send_index;  //cout<<"send : "<<out<<endl;
-    if(outbound_stream.is_finished()){
-      finish=true;
-    }
-    if(tsm.sequence_length()==0)break;
-    //cout<<"add"<<tsm.sequence_length()<<endl;
+    tsm.seqno = send_index; // cout<<"send : "<<out<<endl;
+    if ( tsm.sequence_length() == 0 )
+      break;
+    // cout<<"add"<<tsm.sequence_length()<<endl;
     have_read_bytes += tsm.sequence_length();
     send_index = send_index + tsm.sequence_length();
     real_index += tsm.sequence_length();
     data_for_send.push( tsm );
+    if ( tsm.FIN )
+      finish = true;
+    if ( outbound_stream.is_finished() )
+      break;
   }
 }
 
@@ -88,13 +91,14 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   // Your code here.
   uint64_t res = checkpoint;
   if ( msg.ackno.has_value() ) {
-    if ( msg.ackno.value().unwrap( isn_, checkpoint ) > real_index )
+    uint64_t x = msg.ackno.value().unwrap( isn_, checkpoint );
+    if ( x > real_index || x < res )
       return;
     ackno = msg.ackno.value();
-    checkpoint = ackno.unwrap( isn_, checkpoint );
+    checkpoint = x;
     have_ack_bytes = checkpoint;
   }
-  window_size = max( (uint16_t)1, msg.window_size );
+  window_size = msg.window_size;
   while ( !data_outstanding.empty()
           && data_outstanding.front().seqno.unwrap( isn_, checkpoint ) + data_outstanding.front().sequence_length()
                < checkpoint + 1 ) {
@@ -116,10 +120,15 @@ void TCPSender::tick( const size_t ms_since_last_tick )
   if ( !has_syn )
     return;
   retransmission_timer += ms_since_last_tick;
-  if ( retransmission_timer < RTO || data_outstanding.empty() )
+  if ( retransmission_timer < RTO )
     return;
   retransmission_timer = 0;
-  retransmission_cnt++;
-  data_for_send.push( data_outstanding.front() );
-  RTO <<= 1;
+  if ( !data_outstanding.empty() ) {
+    data_for_send.push( data_outstanding.front() );
+  }
+  if ( window_size ) {
+    retransmission_cnt++;
+    ;
+    RTO <<= 1;
+  }
 }
