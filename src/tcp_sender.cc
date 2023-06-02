@@ -128,7 +128,6 @@ void TCPSender::tick( const size_t ms_since_last_tick )
   }
   if ( window_size ) {
     retransmission_cnt++;
-    ;
     RTO <<= 1;
   }
 }
