@@ -33,11 +33,11 @@
 // request or reply, the network interface processes the frame
 // and learns or replies as necessary.
 struct Retransmit
-  {
-    uint64_t t;//retransmit time
-    EthernetFrame ef;//data to retransmit
-    uint32_t ip;//the replying ip waited for
-  };
+{
+  uint64_t t;       // retransmit time
+  EthernetFrame ef; // data to retransmit
+  uint32_t ip;      // the replying ip waited for
+};
 class NetworkInterface
 {
 private:
@@ -46,15 +46,15 @@ private:
 
   // IP (known as Internet-layer or network-layer) address of the interface
   Address ip_address_;
-  static constexpr uint64_t update_time=30000; //arp_list updated time
-  static constexpr uint64_t wait_time=5000;//ARP request retransmit time
-  uint64_t time_now=0;
-  
-  std::queue<EthernetFrame> data_for_send{};//the mac frame to send
-  std::queue<Retransmit> wait_for_reply{};//the mac frame for reply
-  std::unordered_map<uint32_t,std::pair<EthernetAddress,uint64_t> > arp_list{};//the ip---(mac,time) mappings
-  //the mac waiting for reply(ensure the only first reply can continue to send)
-  std::unordered_map<uint32_t,InternetDatagram> wait_for_send{};
+  static constexpr uint64_t update_time = 30000; // arp_list updated time
+  static constexpr uint64_t wait_time = 5000;    // ARP request retransmit time
+  uint64_t time_now = 0;
+
+  std::queue<EthernetFrame> data_for_send {};                                     // the mac frame to send
+  std::queue<Retransmit> wait_for_reply {};                                       // the mac frame for reply
+  std::unordered_map<uint32_t, std::pair<EthernetAddress, uint64_t>> arp_list {}; // the ip---(mac,time) mappings
+  // the mac waiting for reply(ensure the only first reply can continue to send)
+  std::unordered_map<uint32_t, InternetDatagram> wait_for_send {};
 
 public:
   // Construct a network interface with given Ethernet (network-access-layer) and IP (internet-layer)

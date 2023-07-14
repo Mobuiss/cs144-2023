@@ -62,7 +62,7 @@ class Router
 private:
   // The router's collection of network interfaces
   std::vector<AsyncNetworkInterface> interfaces_ {};
-  std::vector<RouteTable> table{};
+  std::vector<RouteTable> table {};
 
 public:
   // Add an interface to the router
