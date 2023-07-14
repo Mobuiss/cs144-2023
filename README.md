@@ -19,4 +19,6 @@ To run clang-tidy (which suggests improvements): `cmake --build build --target t
 
 To format code: `cmake --build build --target format`
 
+Statement
+===============================
 I have completed the coding assignments for labs 0 to 5.
